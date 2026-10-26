@@ -3,7 +3,7 @@
 Responsive static website for Digi Explain (SMC-Private) Limited, Pakistan.
 
 ## Pages
-- `index.html` — homepage and all services
+- `index.html` — homepage and service directory
 - `event-management.html` — Event Management
 - `indoor-outdoor-branding.html` — Indoor & Outdoor Branding
 - `panaflex-large-format-printing.html` — Panaflex & Large-Format Printing
@@ -12,16 +12,17 @@ Responsive static website for Digi Explain (SMC-Private) Limited, Pakistan.
 - `food-packaging.html` — Food Packaging
 - `labels-stickers.html` — Labels & Stickers
 - `books-publications.html` — Books & Publications
-- `corporate-gifts.html` — Corporate Gifts & Promotional Items
+- `corporate-gifts.html` — Corporate Gifts
 - `signage-displays.html` — Signage & Displays
 
-## Publish with GitHub Pages
-1. Open **Settings → Pages** in this repository.
-2. Set **Deploy from a branch**, branch **main**, folder **/(root)** and save.
-3. After GitHub finishes publishing, the Pages URL will be displayed in Settings → Pages.
+## Enable GitHub Pages
+1. Open **Settings → Pages** for this repository.
+2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+3. Open **Actions → Deploy Digi Explain website to GitHub Pages** and rerun the latest workflow if it failed before Pages was enabled.
+4. After a successful run, use the deployed Pages URL shown in the workflow summary or Settings → Pages.
 
 ## Before going live
-- Replace the WhatsApp placeholder `92XXXXXXXXXX` in the homepage with your business WhatsApp number (country code, digits only).
-- Add the correct business email and any approved business contact details.
-- The pages are static HTML; the enquiry button currently opens WhatsApp and does not save leads to a database.
-- The full portfolio images supplied during the design process are included in the separate ZIP package; this GitHub connector only supports direct text-file writes, so these source uploads do not include the local image asset folders yet.
+- Replace the WhatsApp placeholder `92XXXXXXXXXX` in `index.html` with your business WhatsApp number (country code and digits only).
+- Add the correct business email and approved business contact details if needed.
+- Portfolio image folders from the separate website ZIP have not yet been uploaded to this GitHub repository; the current committed HTML pages are service-led text pages, without the full image galleries.
+- The enquiry button currently opens WhatsApp; it does not save leads to a database.
