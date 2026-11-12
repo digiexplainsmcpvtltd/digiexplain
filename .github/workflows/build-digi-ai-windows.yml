@@ -26,10 +26,10 @@ jobs:
           pip install -r requirements.txt pyinstaller
       - name: Build local service executable
         working-directory: digi-ai/desktop-agent
-        run: pyinstaller --noconfirm --clean --onefile --name DigiAI-Service --console agent.py
+        run: pyinstaller --noconfirm --clean --onefile --collect-all keyring --collect-all uvicorn --collect-all fastapi --collect-all cryptography --name DigiAI-Service --console agent.py
       - name: Build desktop application
         working-directory: digi-ai/desktop-agent
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name DigiAI desktop_app.py
+        run: pyinstaller --noconfirm --clean --onefile --collect-all keyring --collect-all uvicorn --collect-all fastapi --collect-all cryptography --windowed --name DigiAI desktop_app.py
       - name: Assemble portable application folder
         shell: pwsh
         run: |
