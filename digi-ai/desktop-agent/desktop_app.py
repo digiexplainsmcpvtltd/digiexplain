@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 BASE = "http://127.0.0.1:8765"
 DATA_DIR = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "DigiAI"
 TOKEN_FILE = DATA_DIR / "owner.token"
-HERE = Path(__file__).resolve().parent
+HERE = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 AGENT_FILE = HERE / ("DigiAI-Service.exe" if getattr(sys, "frozen", False) else "agent.py")
 
 
