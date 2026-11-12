@@ -1,12 +1,12 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-if not exist ".venv\Scripts\pythonw.exe" (
-  echo Please run install.bat first.
+if not exist "%~dp0.venv\Scripts\pythonw.exe" (
+  echo Digi AI is not installed. Run install.bat first.
   pause
   exit /b 1
 )
-".venv\Scripts\pythonw.exe" desktop_app.py
+"%~dp0.venv\Scripts\pythonw.exe" "%~dp0desktop_app.py"
 if errorlevel 1 (
-  ".venv\Scripts\python.exe" desktop_app.py
+  "%~dp0.venv\Scripts\python.exe" "%~dp0desktop_app.py"
 )
