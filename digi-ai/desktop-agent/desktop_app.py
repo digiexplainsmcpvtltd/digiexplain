@@ -86,6 +86,7 @@ class DigiAIApp:
         nav.pack(fill="x")
         for name, callback in [
             ("Memory Vault", self.show_memory),
+            ("Laptop Data", self.show_laptop_data),
             ("Add Knowledge", self.show_add),
             ("About & Safety", self.show_about),
         ]:
@@ -328,6 +329,76 @@ class DigiAIApp:
         except Exception as exc:
             messagebox.showerror("Delete failed", str(exc))
 
+
+    def show_laptop_data(self):
+        self._clear()
+        self._label(self.body, "LOCAL COMPUTER KNOWLEDGE", 10, "#81d100", True).pack(anchor="w")
+        tk.Label(self.body, text="Laptop Data", bg="#0d100d", fg="#f2f6ee",
+                 font=("Segoe UI", 24, "bold")).pack(anchor="w", pady=(3, 3))
+        self._label(self.body, "Choose a folder to index supported business documents. Data stays on this laptop.").pack(anchor="w")
+        controls = tk.Frame(self.body, bg="#0d100d")
+        controls.pack(fill="x", pady=16)
+        tk.Button(controls, text="Choose folder & scan", command=self.choose_and_scan,
+                  bg="#81d100", fg="#10160b", relief="flat", padx=16, pady=10).pack(side="left")
+        tk.Button(controls, text="Refresh index", command=self.refresh_laptop_files,
+                  bg="#263222", fg="#d7e4d0", relief="flat", padx=16, pady=10).pack(side="left", padx=8)
+        self.file_search = tk.StringVar()
+        search = tk.Entry(self.body, textvariable=self.file_search, bg="#171c17", fg="#f2f6ee",
+                          insertbackground="white", relief="flat", font=("Segoe UI", 11))
+        search.pack(fill="x", ipady=9, pady=(0, 10))
+        search.insert(0, "Search indexed laptop documents…")
+        tk.Button(self.body, text="Search", command=self.refresh_laptop_files,
+                  bg="#263222", fg="#81d100", relief="flat", padx=14, pady=7).pack(anchor="e", pady=(0, 8))
+        self.file_tree = ttk.Treeview(self.body, columns=("name", "type", "size", "modified"),
+                                      show="headings")
+        for col, label, width in [("name", "FILE", 260), ("type", "TYPE", 90),
+                                  ("size", "SIZE (KB)", 100), ("modified", "MODIFIED", 190)]:
+            self.file_tree.heading(col, text=label)
+            self.file_tree.column(col, width=width, anchor="w")
+        self.file_tree.pack(fill="both", expand=True)
+        self.file_status = self._label(self.body, "No laptop folders indexed yet.", 9, "#9aa797")
+        self.file_status.pack(anchor="w", pady=8)
+        self.refresh_laptop_files()
+
+    def choose_and_scan(self):
+        if not self._require_api():
+            return
+        from tkinter import filedialog
+        folder = filedialog.askdirectory(title="Choose a folder for Digi AI to scan")
+        if not folder:
+            return
+        try:
+            result = self.api.request("/computer/scan", method="POST", payload={"folder": folder})
+            messagebox.showinfo("Laptop scan complete",
+                "Indexed: " + str(result.get("indexed", 0)) + "\nSkipped: " +
+                str(result.get("skipped", 0)) +
+                "\n\nExtracted content is encrypted and saved on this laptop.")
+            self.refresh_laptop_files()
+        except Exception as exc:
+            messagebox.showerror("Laptop scan failed", str(exc))
+
+    def refresh_laptop_files(self):
+        if not self._require_api() or not hasattr(self, "file_tree"):
+            return
+        try:
+            from urllib.parse import quote
+            query = self.file_search.get().strip()
+            if query == "Search indexed laptop documents…":
+                query = ""
+            result = self.api.request("/computer/files?q=" + quote(query))
+            for item in self.file_tree.get_children():
+                self.file_tree.delete(item)
+            for i, item in enumerate(result.get("items", [])):
+                self.file_tree.insert("", "end", iid=str(i), values=(
+                    item.get("name", ""), item.get("extension", ""),
+                    round(item.get("size_bytes", 0) / 1024, 1),
+                    item.get("modified_at", "")[:19].replace("T", " ")
+                ))
+            self.file_status.configure(text=str(result.get("count", 0)) +
+                " indexed documents • Stored locally with encryption")
+        except Exception as exc:
+            messagebox.showerror("Laptop index error", str(exc))
+
     def show_about(self):
         self._clear()
         self._label(self.body, "OWNER CONTROL & PRIVACY", 10, "#81d100", True).pack(anchor="w")
@@ -338,7 +409,10 @@ class DigiAIApp:
             "Memory records are encrypted before they are written to the local SQLite database.",
             "The encryption key is held by Windows Credential Manager.",
             "The local API listens only on 127.0.0.1 and requires your owner token.",
-            "This first release does not read chats, browse files, send messages or control other apps.",
+            "Laptop Data lets you select folders and index supported PDF, DOCX, XLSX, PPTX and text documents.",
+            "Only folders you explicitly select are scanned. Each scan is capped at 500 files and 8 MB per file.",
+            "Extracted content and metadata are encrypted and stored on this laptop; no cloud upload occurs.",
+            "This release does not yet read WhatsApp/email chats, capture your screen or control other apps.",
             "Use STOP LOCAL AI to stop the companion process. Closing this window also stops a process started by this app.",
         ]
         for text in details:
