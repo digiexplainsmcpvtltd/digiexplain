@@ -26,7 +26,7 @@ jobs:
           pip install -r requirements.txt pyinstaller
       - name: Build local service executable
         working-directory: digi-ai/desktop-agent
-        run: pyinstaller --noconfirm --clean --onefile --collect-all keyring --collect-all uvicorn --collect-all fastapi --collect-all cryptography --name DigiAI-Service --console agent.py
+        run: pyinstaller --noconfirm --clean --onefile --collect-all keyring --collect-all uvicorn --collect-all fastapi --collect-all cryptography --collect-all pypdf --collect-all docx --collect-all openpyxl --collect-all pptx --name DigiAI-Service --console agent.py
       - name: Build desktop application
         working-directory: digi-ai/desktop-agent
         run: pyinstaller --noconfirm --clean --onefile --collect-all keyring --collect-all uvicorn --collect-all fastapi --collect-all cryptography --windowed --name DigiAI desktop_app.py
@@ -43,8 +43,9 @@ jobs:
           Double-click DigiAI.exe to start.
           Encrypted local memory is stored in %LOCALAPPDATA%\DigiAI.
 
-          This build includes the local Memory Vault only. WhatsApp, email, Urdu voice,
-          live AI chat and full computer control are not yet connected.
+          Includes local encrypted Memory Vault and owner-selected laptop document indexing.
+          Folder scans are limited to 500 supported files per scan and 8 MB per file.
+          WhatsApp, email, Urdu voice, live AI chat and full computer control are not yet connected.
           '@ | Set-Content release/DigiAI/READ-ME-FIRST.txt
       - name: Upload Windows application
         uses: actions/upload-artifact@v4
