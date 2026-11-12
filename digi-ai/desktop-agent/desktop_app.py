@@ -16,7 +16,7 @@ BASE = "http://127.0.0.1:8765"
 DATA_DIR = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "DigiAI"
 TOKEN_FILE = DATA_DIR / "owner.token"
 HERE = Path(__file__).resolve().parent
-AGENT_FILE = HERE / "agent.py"
+AGENT_FILE = HERE / ("DigiAI-Service.exe" if getattr(sys, "frozen", False) else "agent.py")
 
 
 class LocalAPI:
@@ -125,8 +125,9 @@ class DigiAIApp:
                 pass
             if not AGENT_FILE.exists():
                 raise RuntimeError("agent.py was not found beside desktop_app.py.")
+            service_command = [str(AGENT_FILE)] if getattr(sys, "frozen", False) else [sys.executable, str(AGENT_FILE)]
             self.agent_process = subprocess.Popen(
-                [sys.executable, str(AGENT_FILE)],
+                service_command,
                 cwd=str(HERE),
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 stdout=subprocess.DEVNULL,
