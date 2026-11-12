@@ -110,16 +110,28 @@ class DigiAIApp:
 
     def _connect(self):
         try:
-            if not TOKEN_FILE.exists():
-                if not AGENT_FILE.exists():
-                    raise RuntimeError("agent.py was not found beside desktop_app.py.")
-                self.agent_process = subprocess.Popen(
-                    [sys.executable, str(AGENT_FILE)],
-                    cwd=str(HERE),
-                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
+            # Reuse a companion already running; otherwise start one even when
+            # the owner token exists from an earlier session.
+            try:
+                with urlopen(BASE + "/health", timeout=1) as response:
+                    if response.status == 200:
+                        token = TOKEN_FILE.read_text(encoding="utf-8").strip()
+                        self.api = LocalAPI(token)
+                        self.api.request("/health")
+                        self.root.after(0, self._connected)
+                        self.root.after(0, self.refresh)
+                        return
+            except Exception:
+                pass
+            if not AGENT_FILE.exists():
+                raise RuntimeError("agent.py was not found beside desktop_app.py.")
+            self.agent_process = subprocess.Popen(
+                [sys.executable, str(AGENT_FILE)],
+                cwd=str(HERE),
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
             for _ in range(40):
                 if TOKEN_FILE.exists():
                     token = TOKEN_FILE.read_text(encoding="utf-8").strip()
