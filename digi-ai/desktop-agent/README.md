@@ -42,4 +42,4 @@ On first launch an owner token and encryption key are created locally. Do not sh
 
 ## Development
 
-Install Python 3.12 (64-bit), run install.bat, then DigiAI.bat. The GitHub Actions workflow builds the portable Windows executables.
+Install Python 3.15 (your installed version), run install.bat, then DigiAI.bat. The GitHub Actions workflow builds the portable Windows executables.
