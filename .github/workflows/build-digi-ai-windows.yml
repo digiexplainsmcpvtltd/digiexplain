@@ -1,0 +1,54 @@
+name: Build Digi AI Windows application
+
+on:
+  push:
+    branches:
+      - feature/digi-ai-personal-operator
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        working-directory: digi-ai/desktop-agent
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+      - name: Build local service executable
+        working-directory: digi-ai/desktop-agent
+        run: pyinstaller --noconfirm --clean --onefile --name DigiAI-Service --console agent.py
+      - name: Build desktop application
+        working-directory: digi-ai/desktop-agent
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name DigiAI desktop_app.py
+      - name: Assemble portable application folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release/DigiAI | Out-Null
+          Copy-Item digi-ai/desktop-agent/dist/DigiAI.exe release/DigiAI/
+          Copy-Item digi-ai/desktop-agent/dist/DigiAI-Service.exe release/DigiAI/
+          @'
+          Digi AI - Windows Desktop MVP
+
+          Keep DigiAI.exe and DigiAI-Service.exe in the same folder.
+          Double-click DigiAI.exe to start.
+          Encrypted local memory is stored in %LOCALAPPDATA%\DigiAI.
+
+          This build includes the local Memory Vault only. WhatsApp, email, Urdu voice,
+          live AI chat and full computer control are not yet connected.
+          '@ | Set-Content release/DigiAI/READ-ME-FIRST.txt
+      - name: Upload Windows application
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigiAI-Windows-Portable
+          path: release/DigiAI/
+          if-no-files-found: error
