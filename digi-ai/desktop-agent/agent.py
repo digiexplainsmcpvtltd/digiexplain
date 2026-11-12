@@ -83,6 +83,14 @@ def db() -> sqlite3.Connection:
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS memories_updated_idx ON memories(updated_at)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS laptop_files (
+            id TEXT PRIMARY KEY,
+            encrypted_payload BLOB NOT NULL,
+            path_hash TEXT NOT NULL UNIQUE,
+            indexed_at TEXT NOT NULL
+        )
+    """)
     conn.commit()
     return conn
 
@@ -120,6 +128,111 @@ def startup() -> None:
     get_cipher()
     get_owner_token()
     db().close()
+
+
+
+class LaptopScanRequest(BaseModel):
+    folder: str = Field(min_length=1, max_length=2000)
+
+
+def extract_document_text(path: Path) -> str:
+    suffix = path.suffix.lower()
+    try:
+        if suffix in {".txt", ".md", ".csv", ".json", ".log", ".html", ".htm", ".xml"}:
+            return path.read_text(encoding="utf-8", errors="replace")[:30000]
+        if suffix == ".pdf":
+            from pypdf import PdfReader
+            reader = PdfReader(str(path))
+            return "\n".join((page.extract_text() or "") for page in reader.pages[:40])[:30000]
+        if suffix == ".docx":
+            from docx import Document
+            return "\n".join(p.text for p in Document(str(path)).paragraphs)[:30000]
+        if suffix == ".xlsx":
+            from openpyxl import load_workbook
+            wb = load_workbook(path, read_only=True, data_only=True)
+            lines = []
+            for ws in wb.worksheets[:10]:
+                lines.append("[Sheet: " + ws.title + "]")
+                for row in ws.iter_rows(max_row=300, values_only=True):
+                    line = " | ".join(str(v) for v in row if v is not None)
+                    if line:
+                        lines.append(line)
+            wb.close()
+            return "\n".join(lines)[:30000]
+        if suffix == ".pptx":
+            from pptx import Presentation
+            prs = Presentation(str(path))
+            return "\n".join(shape.text for slide in prs.slides[:50]
+                             for shape in slide.shapes if hasattr(shape, "text"))[:30000]
+    except Exception as exc:
+        return "[Could not extract document text: " + type(exc).__name__ + "]"
+    return ""
+
+
+@app.post("/computer/scan", dependencies=[Depends(require_owner)])
+def scan_laptop_folder(request: LaptopScanRequest) -> dict[str, Any]:
+    root = Path(request.folder).expanduser().resolve()
+    if not root.exists() or not root.is_dir():
+        raise HTTPException(status_code=400, detail="Selected folder does not exist")
+    allowed = {".txt", ".md", ".csv", ".json", ".log", ".html", ".htm", ".xml",
+               ".pdf", ".docx", ".xlsx", ".pptx"}
+    ignored = {"AppData", "Windows", "Program Files", "Program Files (x86)",
+               "$Recycle.Bin", "System Volume Information", ".git", "node_modules"}
+    now = datetime.now(timezone.utc).isoformat()
+    indexed = skipped = 0
+    import hashlib
+    with db() as conn:
+        for current, dirs, files in os.walk(root):
+            dirs[:] = [d for d in dirs if d not in ignored and not d.startswith(".")]
+            for filename in files:
+                path = Path(current) / filename
+                if path.suffix.lower() not in allowed:
+                    skipped += 1
+                    continue
+                try:
+                    if path.is_symlink() or path.stat().st_size > 8 * 1024 * 1024:
+                        skipped += 1
+                        continue
+                    stat = path.stat()
+                    payload = {"name": path.name, "path": str(path), "extension": path.suffix.lower(),
+                               "size_bytes": stat.st_size,
+                               "modified_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
+                               "content": extract_document_text(path)}
+                    path_hash = hashlib.sha256(str(path).casefold().encode("utf-8")).hexdigest()
+                    encrypted = get_cipher().encrypt(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+                    conn.execute("""
+                        INSERT INTO laptop_files(id, encrypted_payload, path_hash, indexed_at)
+                        VALUES(?,?,?,?)
+                        ON CONFLICT(path_hash) DO UPDATE SET
+                        encrypted_payload=excluded.encrypted_payload, indexed_at=excluded.indexed_at
+                    """, (secrets.token_hex(16), encrypted, path_hash, now))
+                    indexed += 1
+                    if indexed >= 500:
+                        break
+                except OSError:
+                    skipped += 1
+            if indexed >= 500:
+                break
+    return {"status": "indexed", "folder": str(root), "indexed": indexed,
+            "skipped": skipped, "limit": 500, "storage": "local-encrypted"}
+
+
+@app.get("/computer/files", dependencies=[Depends(require_owner)])
+def list_laptop_files(q: str = Query(default="", max_length=300)) -> dict[str, Any]:
+    with db() as conn:
+        rows = conn.execute("SELECT * FROM laptop_files ORDER BY indexed_at DESC LIMIT 500").fetchall()
+    items, needle = [], q.casefold().strip()
+    for row in rows:
+        try:
+            payload = json.loads(get_cipher().decrypt(row["encrypted_payload"]).decode("utf-8"))
+        except Exception:
+            continue
+        haystack = (payload.get("name", "") + " " + payload.get("path", "") + " " +
+                    payload.get("content", "")).casefold()
+        if not needle or needle in haystack:
+            items.append({k: payload.get(k) for k in
+                          ("name", "path", "extension", "size_bytes", "modified_at")})
+    return {"items": items, "count": len(items), "storage": "local-encrypted"}
 
 
 @app.get("/health")
